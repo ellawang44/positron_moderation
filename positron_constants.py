@@ -3,8 +3,9 @@
 
 from __future__ import division
 import sympy
+import numpy as np
 
-E,z,rad = sympy.symbols('E z rad')
+E,z,rad,m_cra = sympy.symbols('E z rad m_cra')
 A = 4*10**(6) #g(ucm^-2)(keV^-n)
 p = 3.21*10**18 #g(ucm^-3) can assume pure SiC density because radioactive source is only a small amount
 n = 1.6 #taken from http://www.positronannihilation.net/index_files/Positron%20Beam.pdf section 4.1
@@ -26,17 +27,28 @@ m_universal,x = sympy.symbols('m_universal x')
 scaling_factor = 10**7 #To deal with issues with scipy.opt.minimize_scalar's handling of small numbers
 min_radius = scaling_factor*1.5*10**(-8) #Taken from Guessom 2005
 
+# Cratering
+# Peak
+a_P = 0.1
+# Right boundary
+a_R = 0.5
+# Left boundary
+a_L = 1e-4
+f = 0.03
+sigma = min(abs(a_R - a_P), abs(a_L - a_P)) / np.sqrt(np.log(2)) / 4
+cratering = 2*f*np.e**(-(m_cra - a_P)**2 / sigma**2)
+
 #fragmentation size distribution equation
 #size_distribution = sympy.Piecewise((0,rad<min_radius),(0,rad>max_radius),(rad**(alpha_value),True))
 
-def p_depth(energy_value):    
+def p_depth(energy_value):
 
     """Given an energy value, return a probability
     distrubution function for penetration depth
-    """  
-        
+    """
+
     return sympy.Piecewise((0,z<=0),(p_depth_energy,z>0)).subs(E,energy_value)
-    
+
 class Simulation_Config():
     def __init__(self):
         self.r_mul = 10 #radius multiplier
@@ -48,9 +60,9 @@ class Simulation_Config():
     # they aren't really
     def __getattr__(self, name):
         if name == 'max_radius':
-            return scaling_factor * self.r_mul * (10**self.r_exp)        
+            return scaling_factor * self.r_mul * (10**self.r_exp)
         elif name == 'size_distribution':
             return sympy.Piecewise((0,rad<min_radius),(0,rad>self.max_radius),(rad**(self.alpha_value),True))
         raise AttributeError
-   
+
 config = Simulation_Config()
